@@ -22,11 +22,42 @@ server. From its menu you can:
   `skill-backups/`, never deleted)
 - turn on **Launch at Login**
 
-Install: unzip, drag **To Do MCP** into Applications, and open it from there. The app isn't
-signed by Apple yet, so the first time macOS will refuse to open it: go to System Settings →
-Privacy & Security and click **Open Anyway** (or right-click the app → Open). Build it yourself
-with `scripts/build-app.sh` (needs Swift, from Xcode or the Command Line Tools, and uv); the
-result goes to `dist/`. Builds are for the building Mac's architecture.
+### Install
+
+Requirements: macOS 13 or later on an Apple Silicon Mac (M1 or newer).
+
+1. Download the `.dmg` from [Releases](https://github.com/QingyaoAi/Microsoft-To-do-MCP/releases),
+   open it, and drag **To Do MCP** onto the Applications shortcut.
+2. Open it **from Applications** (not from the disk image or Downloads; otherwise macOS runs
+   it from a temporary location and connected agents lose track of it).
+3. The first time, macOS blocks it (see below). After that, click the checklist icon in the
+   menu bar → **Sign In…**, then **Connect to Agent**.
+
+### "Apple could not verify…": opening an unsigned app
+
+The app is free and open source but **not signed or notarized by Apple** (that needs a paid
+Apple developer account), so Gatekeeper blocks the first launch. Only allow it if you
+downloaded it from this repository's Releases page, or built it yourself.
+
+- **In System Settings:** double-click the app and click **Done** when macOS refuses. Then
+  open **System Settings → Privacy & Security**, scroll to **Security**, click **Open Anyway**
+  next to the "To Do MCP" message, confirm with your password or Touch ID, and click
+  **Open Anyway** again. You only do this once. (On macOS 15 and later, right-click → Open no
+  longer skips this step.)
+- **Or in Terminal:** remove the "downloaded from the internet" flag, then open it normally:
+
+  ```bash
+  xattr -dr com.apple.quarantine "/Applications/To Do MCP.app"
+  ```
+
+The same instructions are in `READ ME FIRST.txt` on the disk image. The app is ad-hoc signed,
+so macOS can still check that its files haven't been changed since it was built.
+
+### Build it yourself
+
+`scripts/build-app.sh` builds the app and the `.dmg` into `dist/` (needs Swift, from Xcode or
+the Command Line Tools, and uv). A build is for the building Mac's architecture, and an app
+you build yourself isn't quarantined, so it opens without the steps above.
 
 Inside the app, `To Do MCP.app/Contents/MacOS/mstodo-mcp` is the same CLI and server as below
 (`status`, `login`, ...), and the app's own binary has a scriptable mode:

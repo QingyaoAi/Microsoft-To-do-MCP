@@ -1,0 +1,32 @@
+To Do MCP: opening the app the first time
+==========================================
+
+To Do MCP is free and open source, but it isn't signed by Apple (that needs a paid Apple
+developer account). So the first time you open it, macOS blocks it with a message like
+"Apple could not verify 'To Do MCP' is free of malware". Only allow it if you downloaded it
+from https://github.com/QingyaoAi/Microsoft-To-do-MCP/releases
+
+1. Drag "To Do MCP" onto the Applications shortcut in this window.
+
+2. Open your Applications folder and double-click "To Do MCP".
+   When macOS says it can't be opened, click "Done" (not "Move to Trash").
+
+3. Open System Settings > Privacy & Security, scroll down to the Security section, and click
+   "Open Anyway" next to the message about "To Do MCP". Confirm with your password or
+   Touch ID, then click "Open Anyway" once more.
+
+4. A checklist icon appears in the menu bar. Click it and choose "Sign In..." to connect
+   your Microsoft account, then "Connect to Agent" for your AI tools.
+
+You only need to do this once.
+
+Terminal alternative to steps 2-3 (removes the "downloaded from the internet" flag):
+
+    xattr -dr com.apple.quarantine "/Applications/To Do MCP.app"
+
+Please run it from Applications. If you open it straight from this disk image or from
+Downloads, macOS runs it from a temporary location, and agents you connect would lose track
+of it later.
+
+Requirements: macOS 13 or later on an Apple Silicon Mac (M1 or newer).
+Source code, help and the MIT license: https://github.com/QingyaoAi/Microsoft-To-do-MCP

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Builds "To Do MCP.app" (menu-bar app + a private Python with the MCP server) into dist/.
+# Builds "To Do MCP.app" (menu-bar app + a private Python with the MCP server) and a .dmg
+# for release into dist/.
 #
 # Needs: macOS 13+, Swift (Xcode or the Command Line Tools) and uv. Output is unsigned
 # (ad-hoc signed) and for this Mac's architecture only.
@@ -24,7 +25,7 @@ step() { printf '\n==> %s\n' "$*"; }
 step "Staging sources in $STAGE"
 rm -rf "$STAGE"
 mkdir -p "$SRC" "$APP/Contents/MacOS" "$APP/Contents/Resources/skills"
-for item in Package.swift Sources pyproject.toml uv.lock .python-version src skills README.md LICENSE; do
+for item in Package.swift Sources pyproject.toml uv.lock .python-version src skills packaging README.md LICENSE; do
     cp -R "$REPO/$item" "$SRC/"
 done
 find "$SRC" -name __pycache__ -prune -exec rm -rf {} +
@@ -96,12 +97,17 @@ fi
 step "Smoke test"
 "$APP/Contents/MacOS/mstodo-mcp" status --json || true
 
-step "Packaging"
+step "Building the disk image"
+DMGROOT="$STAGE/dmg"
+mkdir -p "$DMGROOT"
+ditto "$APP" "$DMGROOT/$APP_NAME.app"
+ln -s /Applications "$DMGROOT/Applications"
+cp "$SRC/packaging/READ ME FIRST.txt" "$DMGROOT/"
 mkdir -p "$REPO/dist"
+DMG="$REPO/dist/To-Do-MCP-$VERSION-macos-$ARCH.dmg"
+rm -f "$DMG"
+hdiutil create -quiet -volname "$APP_NAME" -srcfolder "$DMGROOT" -fs HFS+ -format UDZO -ov "$DMG"
 rm -rf "$REPO/dist/$APP_NAME.app"
 ditto "$APP" "$REPO/dist/$APP_NAME.app"
-ZIP="$REPO/dist/To-Do-MCP-$VERSION-macos-$ARCH.zip"
-rm -f "$ZIP"
-ditto -c -k --keepParent "$APP" "$ZIP"
-du -sh "$REPO/dist/$APP_NAME.app" "$ZIP"
-echo "Done: $REPO/dist/$APP_NAME.app"
+du -sh "$REPO/dist/$APP_NAME.app" "$DMG"
+echo "Done: $DMG"
