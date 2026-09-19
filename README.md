@@ -72,3 +72,7 @@ Not supported yet: editing repeat rules, downloading or adding attachment files,
 - `MSTODO_AUTHORITY`: default `https://login.microsoftonline.com/consumers` (personal accounts); use `.../organizations` for work accounts
 - `MSTODO_TIMEZONE`: IANA zone, default is the system zone
 - `MSTODO_CACHE`: token cache path
+
+## License
+
+MIT, see [LICENSE](LICENSE).
