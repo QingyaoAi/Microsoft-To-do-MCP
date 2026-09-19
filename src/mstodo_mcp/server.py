@@ -28,14 +28,28 @@ TZ = ZoneInfo(graph.timezone)
 NOTE_PREVIEW = 200
 LISTS_TTL = 300  # seconds to reuse the list-name -> id lookup
 
-mcp = MCPServer(
-    "mstodo",
-    instructions=(
-        "Read and edit the user's Microsoft To Do. Lists can be named by display name or id. "
-        f"Dates and times are in the user's zone ({graph.timezone}): due dates are YYYY-MM-DD, "
-        "reminders are YYYY-MM-DD HH:MM. Steps are To Do's subtasks (checklist items)."
-    ),
-)
+# Sent to every MCP client when it connects, so these rules reach any agent, whether or not
+# it has loaded the ms-todo skill. Keep them short; the skill has the longer version.
+INSTRUCTIONS = f"""\
+Read and edit the user's Microsoft To Do. Every change is real and syncs to all their devices.
+- Lists: pass the exact display name (case-insensitive) or id; call list_lists if unsure.
+- Find before editing: task ids come only from list_tasks. Its default status is "open", so
+  finished tasks are hidden unless you pass status="completed" or "all". Use title_contains.
+- If a search matches several tasks, ask the user which one. If nobody can answer (unattended
+  run), change nothing and report the candidates.
+- delete_task and delete_list are permanent (no recycle bin). Delete only what the user clearly
+  asked for; when the user says a task is done, mark it with update_task(completed=true).
+- Dates and times are in {graph.timezone}: due_date YYYY-MM-DD, reminder YYYY-MM-DD HH:MM.
+  Convert relative dates ("Friday", "明天") to absolute ones. Remove fields with
+  update_task(clear=["reminder"]) (or "note", "due_date"), never by sending empty values.
+- Steps are To Do's subtasks. important=true is the star; results show "importance".
+- Not possible: changing repeat rules, downloading/adding attachments, "My Day".
+- If a tool error says sign-in has expired, give the user the link and code from the error,
+  wait for them to finish, then retry.
+- Tell the user what changed in plain words (title, list, dates); don't show ids unless asked.
+"""
+
+mcp = MCPServer("mstodo", instructions=INSTRUCTIONS)
 
 READ = ToolAnnotations(read_only_hint=True, open_world_hint=True)
 ADD = ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=True)
@@ -296,7 +310,7 @@ def rename_list(list: ListRef, new_name: str) -> dict:
 
 @tool(CHANGE)
 def delete_list(list: ListRef) -> dict:
-    """Permanently delete a To Do list and every task in it."""
+    """Permanently delete a To Do list and every task in it (no recycle bin). Confirm with the user first."""
     list_id = _list_id(list)
     graph.request("DELETE", f"/me/todo/lists/{list_id}")
     _lists(refresh=True)
@@ -314,7 +328,8 @@ def list_tasks(
     include_steps: Annotated[bool, Field(description="Include each task's steps (subtasks)")] = False,
     limit: Annotated[int, Field(ge=1, le=5000, description="Maximum tasks to return, newest first")] = 100,
 ) -> dict:
-    """List tasks in a list, newest first. Notes longer than 200 characters are shortened; use get_task for the full task."""
+    """List tasks in a list, newest first. Finished tasks are hidden unless status is "completed" or "all".
+    Notes longer than 200 characters are shortened; use get_task for the full task."""
     params = {"$top": "100", "$orderby": "createdDateTime desc"}
     if status == "open":
         params["$filter"] = "status ne 'completed'"
@@ -406,7 +421,7 @@ def update_task(
 
 @tool(CHANGE)
 def delete_task(list: ListRef, task_id: TaskId) -> dict:
-    """Permanently delete a task."""
+    """Permanently delete a task (no recycle bin). To finish a task, use update_task(completed=true) instead."""
     graph.request("DELETE", _task_path(list, task_id))
     return {"deleted_task": task_id}
 

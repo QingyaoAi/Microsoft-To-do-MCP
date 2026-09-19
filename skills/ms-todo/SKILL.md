@@ -5,13 +5,24 @@ description: Read and edit the user's Microsoft To Do (lists, tasks, steps/subta
 
 # Microsoft To Do via the `mstodo` MCP server
 
-The `mstodo` server talks to Microsoft Graph as the signed-in user. Changes sync to the
-To Do app, website and phone, so every write is real and visible everywhere.
+The `mstodo` server talks to Microsoft Graph as the signed-in user. Changes sync
+to the To Do app, website and phone, so every write is real and visible everywhere.
+
+This guide is for any AI agent that can call MCP tools (Claude Code, Codex, Gemini, Cursor,
+Claude Desktop, a custom agent, ...). Nothing in it depends on a particular client.
 
 ## Getting the tools
 
-The tools are `mcp__mstodo__<name>` and are often deferred. If they aren't callable yet, load
-the ones you need first, e.g. `ToolSearch("select:mcp__mstodo__list_tasks,mcp__mstodo__update_task")`.
+The server is registered under the name `mstodo`, and its tools have the plain names in the
+table below. Clients present them differently: Claude Code, for example, shows `list_tasks`
+as `mcp__mstodo__list_tasks`, and other clients use another prefix or none. Use the name your
+own tool list shows.
+
+Some clients load MCP tools only on demand. If the `mstodo` tools are listed but not yet
+callable, load them with your client's mechanism first (in Claude Code:
+`ToolSearch("select:mcp__mstodo__list_tasks,mcp__mstodo__update_task")`). If no `mstodo`
+tools exist at all, the server is not connected to this agent; see "If something goes wrong"
+below.
 
 | Tool | Use it to |
 |---|---|
@@ -23,6 +34,8 @@ the ones you need first, e.g. `ToolSearch("select:mcp__mstodo__list_tasks,mcp__m
 | `delete_task(list, task_id)` | Delete permanently |
 | `add_step` / `update_step` / `delete_step` | Subtasks ("steps" in To Do) |
 | `create_list` / `rename_list` / `delete_list` | Lists (deleting a list deletes all its tasks) |
+
+Results are compact JSON text. Failures come back as tool errors with a readable message.
 
 ## How to work
 
@@ -39,11 +52,14 @@ If you don't know which list a task is in, search the likely lists (or all of th
 rather than paging through everything.
 
 **When a search matches several tasks, ask which one** before editing or deleting — a wrong
-guess changes the user's real data. When it matches exactly one, just proceed.
+guess changes the user's real data. When it matches exactly one, just proceed. If there is
+no one to ask (a scheduled job, a batch run, a task handed to you by another agent), leave
+ambiguous matches untouched and report the candidates instead.
 
 **Deleting is permanent** (the API has no recycle bin). If the user explicitly asked to delete
-a specific task, do it; for bulk deletes or anything inferred, confirm first. Prefer marking a
-task finished when the user says "done", "finished", "完成", "划掉".
+a specific task, do it; for bulk deletes or anything inferred, confirm first, and when you
+can't confirm, don't delete. Prefer marking a task finished when the user says "done",
+"finished", "完成", "划掉".
 
 **Mark finished / reopen:** `update_task(completed=true)` / `completed=false`. To Do records the
 completion date itself.
@@ -51,8 +67,8 @@ completion date itself.
 ## Dates, times and fields
 
 - Dates and times are in the time zone named in the server's instructions (the machine's
-  local zone). Turn relative dates ("Friday", "明天", "next week") into absolute ones using
-  today's date.
+  local zone). Turn relative dates ("Friday",
+  "明天", "next week") into absolute ones using today's date.
 - `due_date` is `YYYY-MM-DD` (To Do due dates have no time). `reminder` is
   `YYYY-MM-DD HH:MM` local time.
 - To remove a note, due date or reminder, pass `clear`, e.g.
@@ -74,15 +90,21 @@ completion date itself.
 ## Reporting back
 
 Confirm what changed in plain words — task title, list, and the dates or steps you set — for
-example "Added 'Submit review' to Work, due 2026-10-03, starred." Don't show task ids unless
-asked. When listing tasks, show titles with due dates/steps rather than raw JSON.
+example "Added 'Submit review' to Work, due 2026-10-03, starred." Don't show task
+ids unless asked. When listing tasks, show titles with due dates/steps rather than raw JSON.
 
 ## If something goes wrong
 
 - **Sign-in expired:** the tool error contains a link and a code. Pass both to the user
-  exactly, wait for them to say they've signed in, then retry the same call.
-- **Tools missing or not connected:** check with `claude mcp get mstodo`. In the server's
-  folder, `.venv/bin/mstodo-mcp status` checks the sign-in and `.venv/bin/mstodo-mcp login`
-  signs in again from a terminal.
+  exactly, wait for them to say they've signed in, then retry the same call. If no one can
+  respond (unattended run), stop and report the link and code rather than retrying. (On macOS, the
+  optional keep-alive job normally keeps the sign-in fresh, so this is rare.)
+- **Tools missing or not connected:** the `mstodo` server is not registered with this agent,
+  or it failed to start. Tell the user rather than reaching To Do some other way (web pages,
+  raw Graph calls). The server is a local stdio program:
+  `<repo>/.venv/bin/mstodo-mcp`, run with no arguments; the repo's README
+  (https://github.com/QingyaoAi/Microsoft-To-do-MCP) shows how to register it with common
+  agents. If you can run shell commands, `.venv/bin/mstodo-mcp status` in the repo checks
+  the sign-in, and `.venv/bin/mstodo-mcp login` signs in again from a terminal.
 - **Graph errors** (e.g. `ErrorItemNotFound`) usually mean a stale id: search again with
   `list_tasks` and retry once.

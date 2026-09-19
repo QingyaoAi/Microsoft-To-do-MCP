@@ -1,7 +1,7 @@
 # mstodo-mcp
 
-MCP server for reading and editing Microsoft To Do through Microsoft Graph, plus a
-Claude Code skill that teaches Claude how to use it.
+MCP server for reading and editing Microsoft To Do through Microsoft Graph, plus an agent
+skill that teaches any AI agent (Claude Code, Codex, Gemini, Cursor, ...) how to use it well.
 
 Requirements: [uv](https://docs.astral.sh/uv/) and a Microsoft account with To Do. The server
 itself runs anywhere Python does; the sign-in keep-alive, dialogs and notifications are
@@ -15,15 +15,47 @@ cd Microsoft-To-do-MCP
 uv sync                       # install into .venv (Python 3.12, pinned by uv)
 .venv/bin/mstodo-mcp login    # one-time device-code sign-in in the browser
 .venv/bin/mstodo-mcp status   # check sign-in
-claude mcp add --scope user mstodo -- "$PWD/.venv/bin/mstodo-mcp"
 ```
 
-Optional: install the skill so every Claude Code session knows how to use the tools well
-(find tasks before editing, ask when a name is ambiguous, date handling, limits):
+### Connect it to your agent
+
+The server is a local stdio program with no arguments: `<repo>/.venv/bin/mstodo-mcp`. Register
+it under the name `mstodo` in whichever MCP client you use, for example:
 
 ```bash
-mkdir -p ~/.claude/skills && cp -r skills/ms-todo ~/.claude/skills/
+# Claude Code
+claude mcp add --scope user mstodo -- "$PWD/.venv/bin/mstodo-mcp"
+# Codex CLI
+codex mcp add mstodo -- "$PWD/.venv/bin/mstodo-mcp"
 ```
+
+Clients configured with an `mcpServers` JSON file (Claude Desktop, Cursor, Gemini CLI and
+others) take the same command:
+
+```json
+{
+  "mcpServers": {
+    "mstodo": { "command": "/absolute/path/to/repo/.venv/bin/mstodo-mcp" }
+  }
+}
+```
+
+### Install the skill (optional)
+
+`skills/ms-todo/SKILL.md` teaches an agent to use the tools well: find tasks before editing,
+ask when a name is ambiguous, handle dates, respect the limits, and cope with an expired
+sign-in. It uses the open Agent Skills format (a folder with a `SKILL.md`), is written for any
+MCP client, and doesn't assume Claude. Copy or symlink the folder into your agent's skills
+directory, for example:
+
+```bash
+mkdir -p ~/.claude/skills && cp -r skills/ms-todo ~/.claude/skills/   # Claude Code
+mkdir -p ~/.codex/skills && cp -r skills/ms-todo ~/.codex/skills/     # Codex CLI
+```
+
+For other agents, see their documentation for the skills directory. For an agent without
+skill support, paste the body of `SKILL.md` (everything after the front matter) into its
+instructions file, such as `AGENTS.md` or `GEMINI.md`.
 
 Sign-in uses Microsoft's public "Microsoft Graph Command Line Tools" app, so no Azure
 registration is needed. The token cache lives in `~/.config/mstodo-mcp/token_cache.json`
