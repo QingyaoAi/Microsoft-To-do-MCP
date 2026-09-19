@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+# personal notes and sign-in data must never be committed
+To do.md
+token_cache.json
+*.tmp
