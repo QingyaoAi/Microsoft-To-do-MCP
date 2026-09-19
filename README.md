@@ -3,11 +3,42 @@
 MCP server for reading and editing Microsoft To Do through Microsoft Graph, plus an agent
 skill that teaches any AI agent (Claude Code, Codex, Gemini, Cursor, ...) how to use it well.
 
-Requirements: [uv](https://docs.astral.sh/uv/) and a Microsoft account with To Do. The server
-itself runs anywhere Python does; the sign-in keep-alive, dialogs and notifications are
-macOS-only.
+There are two ways to run it: the **macOS menu-bar app** (no Python or terminal needed), or
+**from source** on any OS with [uv](https://docs.astral.sh/uv/). Either way you need a
+Microsoft account with To Do.
 
-## Setup
+## macOS app
+
+`To Do MCP.app` is a menu-bar app (macOS 13 or later) that bundles its own Python and the
+server. From its menu you can:
+
+- sign in to Microsoft (the code is copied and the Microsoft page opens for you), and see
+  whether the sign-in is still valid; it renews the sign-in daily while running and notifies
+  you if you need to sign in again
+- **Connect to Agent**: register the server with Claude Code, Codex CLI, Claude Desktop,
+  Cursor or Gemini CLI in one click (JSON config files keep their other settings, and a
+  `.bak-todo-mcp` backup is written first)
+- **Install Skill** for Claude Code or Codex (an existing, different copy is moved to
+  `skill-backups/`, never deleted)
+- turn on **Launch at Login**
+
+Install: unzip, drag **To Do MCP** into Applications, and open it from there. The app isn't
+signed by Apple yet, so the first time macOS will refuse to open it: go to System Settings →
+Privacy & Security and click **Open Anyway** (or right-click the app → Open). Build it yourself
+with `scripts/build-app.sh` (needs Swift, from Xcode or the Command Line Tools, and uv); the
+result goes to `dist/`. Builds are for the building Mac's architecture.
+
+Inside the app, `To Do MCP.app/Contents/MacOS/mstodo-mcp` is the same CLI and server as below
+(`status`, `login`, ...), and the app's own binary has a scriptable mode:
+
+```bash
+APP="/Applications/To Do MCP.app/Contents/MacOS"
+"$APP/ToDoMCP" --diagnose                    # what's connected and installed
+"$APP/ToDoMCP" --connect codex               # claude-code, codex, claude-desktop, cursor, gemini
+"$APP/ToDoMCP" --install-skill claude        # claude or codex; add --replace to overwrite
+```
+
+## Setup from source
 
 ```bash
 git clone https://github.com/QingyaoAi/Microsoft-To-do-MCP.git

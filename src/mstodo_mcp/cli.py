@@ -1,5 +1,6 @@
 """Entry point: `mstodo-mcp` serves MCP over stdio; other commands manage sign-in."""
 
+import json
 import os
 import plistlib
 import subprocess
@@ -10,7 +11,7 @@ from pathlib import Path
 from . import notify
 from .auth import Auth, AuthError, LoginRequired
 
-USAGE = "usage: mstodo-mcp [serve|login|logout|status|keepalive|install-keepalive|uninstall-keepalive]"
+USAGE = "usage: mstodo-mcp [serve|login [--json]|logout [--json]|status [--json [--refresh]]|keepalive|install-keepalive|uninstall-keepalive]"
 
 LAUNCHD_LABEL = "com.mstodo-mcp.keepalive"
 LAUNCHD_PLIST = Path.home() / "Library/LaunchAgents" / f"{LAUNCHD_LABEL}.plist"
@@ -68,6 +69,36 @@ def remind_and_login(auth: Auth) -> int:
     return 0
 
 
+def status_json(auth: Auth, refresh: bool) -> dict:
+    """Sign-in state for the app: signed_out | ok | login_required | error.
+    With refresh=True the refresh token is renewed too (the app's keep-alive)."""
+    user = auth.username()
+    if not user:
+        return {"state": "signed_out"}
+    try:
+        auth.token(force_refresh=refresh)
+    except LoginRequired as e:
+        return {"state": "login_required", "user": user, "message": str(e)}
+    except AuthError as e:
+        return {"state": "error", "user": user, "message": str(e)}
+    return {"state": "ok", "user": user}
+
+
+def login_json(auth: Auth) -> None:
+    """Device code sign-in as JSON lines: a "code" event right away, then "done" or "error"."""
+
+    def emit(**event) -> None:
+        print(json.dumps(event), flush=True)
+
+    try:
+        flow = auth.start_login()
+        emit(event="code", verification_uri=flow["verification_uri"], user_code=flow["user_code"],
+             expires_in=flow["expires_in"])
+        emit(event="done", user=auth.finish_login(flow))
+    except AuthError as e:
+        emit(event="error", message=str(e))
+
+
 def install_keepalive() -> None:
     exe = os.path.abspath(sys.argv[0])
     env = {k: v for k, v in os.environ.items() if k.startswith("MSTODO_")}
@@ -110,13 +141,18 @@ def main() -> None:
         return
 
     auth = Auth()
+    as_json = "--json" in sys.argv  # machine-readable output for the menu-bar app
     try:
-        if command == "login":
+        if command == "login" and as_json:
+            login_json(auth)
+        elif command == "login":
             user = auth.login(show=lambda msg: print(msg, flush=True))
             print(f"Signed in as {user}. Token cache: {auth.cache_path}")
         elif command == "logout":
             auth.logout()
-            print("Signed out.")
+            print(json.dumps({"state": "signed_out"}) if as_json else "Signed out.")
+        elif command == "status" and as_json:
+            print(json.dumps(status_json(auth, refresh="--refresh" in sys.argv)))
         elif command == "status":
             user = auth.username()
             if not user:

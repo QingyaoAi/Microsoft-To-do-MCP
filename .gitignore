@@ -6,3 +6,5 @@ __pycache__/
 To do.md
 token_cache.json
 *.tmp
+.build/
+dist/
